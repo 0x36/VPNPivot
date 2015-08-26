@@ -38,7 +38,7 @@ Usage
   [BIN] vpnp_client
   ---------
 **vpnp_server :**
-> ./vpnp_server -i pwn0 -I 192.168.200.70/24 -m 1500 -H 0c:0a:DE:AD:BE:EF -K "I0wnY0u*!" -v**
+> ./vpnp_server -i pwn0 -I 10.10.10.145/24 -m 1500 -H 0c:0a:DE:AD:BE:EF -K "I0wnY0u*!" -v**
 [+] Setup a non-persistent tap : pwn0
 [+] Listening on port : 12345
 
