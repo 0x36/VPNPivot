@@ -38,13 +38,13 @@ Usage
   [BIN] vpnp_client
   ---------
 **vpnp_server :**
-> ./vpnp_server -i pwn0 -I 192.168.200.70/24 -m 1500 -H 0c:0a:DE:AD:BE:EF -K "I0wnY0u*!" -v**
+> ./vpnp_server -i pwn0 -I 10.10.10.145/24 -m 1500 -H 0c:0a:DE:AD:BE:EF -K "I0wnY0u*!" -v**
 [+] Setup a non-persistent tap : pwn0
 [+] Listening on port : 12345
 
 So it creates an a tap device named pwn0 as shown bellow:
 > 
-simo@pwner:~$ ifconfig pwn0
+simo:~$ ifconfig pwn0
 pwn0      Link encap:Ethernet  HWaddr 0c:0a:de:ad:be:ef  
           inet adr:192.168.200.70  Bcast:192.168.200.255  Masque:255.255.255.0
           adr inet6: fe80::887e:86ff:fe8a:3599/64 Scope:Lien
