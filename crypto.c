@@ -1,5 +1,6 @@
 /*
- * 	Tool: VPNPivot crypto dummy implementation
+ * 	Tool: VPNPivot crypto (VERY BUGGY) dummy implementation
+ *	Next version will support libssl instead
  * 	Author: Simo Ghannam
  * 	Contact: <simo.ghannam@gmail.com>
  * 	Coded: 2015
@@ -51,6 +52,7 @@ void rc4_key_sched(unsigned char *key_data,unsigned int key_len,struct rc4_conte
 
 void rc4_cipher(unsigned char *buf,unsigned int buflen,struct rc4_context *ctx)
 {
+	
 	unsigned char x,y,xoridx;
 	unsigned char *state;
 	int i;
@@ -73,17 +75,20 @@ void rc4_cipher(unsigned char *buf,unsigned int buflen,struct rc4_context *ctx)
 void rc4_prepare_shared_key(struct rc4_context *ctx,unsigned char *shr_key)
 {
 	unsigned char seed[256];
-	unsigned char skey[256];
+	unsigned char *skey;
 	unsigned int keylen,hex;
 	unsigned char digit[5];
 	int i;
 
-	memset(skey,0,256);
 	memset(seed,0,256);
 	memset(digit,0,5);
 
 	keylen = strlen((const char*)shr_key);
+	skey = (unsigned char *)malloc(keylen +1);
+	if(!skey)
+		return;
 
+	memset(skey,0,keylen+1);
 	memcpy(skey,shr_key,keylen);
 	if(keylen & 1) {
 		strcat((char*)skey,"A");
