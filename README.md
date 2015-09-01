@@ -1,5 +1,7 @@
 VPN Pivot!
 ===================
+You can find here a tutorial about how to use VPNPivot with examples : http://blog.0x36.org/?p=57
+
 Sometime we do external penetration testing and when we compromise the remote target we would love to explore the internal network behind and getting such compromise like owning Active directory, accessing shared files ... etc.
 There are many techniques like port forwarding, socks4 ..., but each one has its pros and cons . this is the reason why VPN pivoting techniques is out , it solves all the problems encountered by using both of the techniques mentioned above.
 it lets you interact with internal networks that are prevented by firewalls,NATs .. etc
