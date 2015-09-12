@@ -1,5 +1,5 @@
 /*
- * 	Tool: VPNPivot crypto (VERY BUGGY) dummy implementation
+ * 	Tool: VPNPivot crypto implementation
  *	Next version will support libssl instead
  * 	Author: Simo Ghannam
  * 	Contact: <simo.ghannam@gmail.com>
@@ -31,78 +31,171 @@
 
 #include "etn.h"
 
-void rc4_key_sched(unsigned char *key_data,unsigned int key_len,struct rc4_context *ctx)
+SSL_CTX *cr_ssl_context(void)
 {
-	int i;
-	unsigned char idx1,idx2;
-	unsigned char *state;
+	const SSL_METHOD *meth;
+	SSL_CTX *ssl;
 	
-	state = &ctx->state[0];
-	
-	for(i=0;i<256;i++) 
-		state[i] = i;
-	ctx->x = ctx->y = idx1 = idx2 = 0;
-	
-	for(i=0;i<256;i++) {
-		idx2 = (key_data[idx1] +state[i] + idx2) %256;
-		SWAP_BYTES(&state[i],&state[idx2]);
-		idx1 = (idx1 + 1) % key_len;
+	/* loading ssl features */
+
+	SSL_load_error_strings();
+	OpenSSL_add_all_algorithms();
+
+	SSL_library_init();	
+	/* creat a TLSv1 method instance */
+	meth = TLSv1_server_method();
+	//meth = SSLv23_server_method();
+	ssl = SSL_CTX_new(meth);
+	if(!ssl) {
+		ERR_print_errors_fp(stderr);
+		return NULL;
 	}
+	return ssl;
 }
 
-void rc4_cipher(unsigned char *buf,unsigned int buflen,struct rc4_context *ctx)
+SSL_CTX *cr_ssl_context_cli(void)
 {
+	const SSL_METHOD *meth;
+	SSL_CTX *ssl;
 	
-	unsigned char x,y,xoridx;
-	unsigned char *state;
-	int i;
-	
-	x = ctx->x;
-	y = ctx->y;
-	
-	state = &ctx->state[0];
-	for(i=0;i<buflen;i++) {
-		x = (x + 1) % 256;
-		y = (state[x] + y) % 256;
-		SWAP_BYTES(&state[x],&state[y]);
-		xoridx = ( state[x] + state[y]) % 256;
-		buf[i] ^= state[xoridx];
+	/* loading ssl features */
+
+	SSL_load_error_strings();
+	OpenSSL_add_all_algorithms();
+
+	SSL_library_init();	
+	/* creat a TLSv1 method instance */
+	meth = TLSv1_client_method();
+
+	ssl = SSL_CTX_new(meth);
+	if(!ssl) {
+		ERR_print_errors_fp(stderr);
+		return NULL;
 	}
-	ctx->x = x;
-	ctx->y = y;
+	return ssl;
 }
 
-void rc4_prepare_shared_key(struct rc4_context *ctx,unsigned char *shr_key)
+int cr_ssl_connect(struct socket *s)
 {
-	unsigned char seed[256];
-	unsigned char *skey;
-	unsigned int keylen,hex;
-	unsigned char digit[5];
-	int i;
+	printf("SSL Connect\n");
+	struct socket *sock;
 
-	memset(seed,0,256);
-	memset(digit,0,5);
-
-	keylen = strlen((const char*)shr_key);
-	skey = (unsigned char *)malloc(keylen +1);
-	if(!skey)
-		return;
-
-	memset(skey,0,keylen+1);
-	memcpy(skey,shr_key,keylen);
-	if(keylen & 1) {
-		strcat((char*)skey,"A");
-		keylen++;
-	}
-	keylen /= 2;
-	memcpy(digit,"AA",2);
-	digit[4]='\0';
+	sock = s;
 	
-	for(i=0;i<keylen;i++) {
-		digit[2] = skey[i*2];
-		digit[3] = skey[i*2+1];
-		sscanf((const char*)digit,"%x",&hex);
-		seed[i] = hex;
+	SSL_set_fd(sock->sk_ssl,sock->sk_fd);
+	SSL_connect(sock->sk_ssl);
+	return -1;
+}
+/* cr_load_certs : loads private key and certificates from files 
+ * if cert_file and key_file are NULL , the function will generate
+ * a dynamic certificate and private key
+ */
+void cr_load_certs(SSL_CTX *ssl,u_char *cert_file,u_char *key_file)
+{
+	X509 *cert = NULL;
+	EVP_PKEY *pkey = NULL;
+	
+	if(cert_file == NULL || key_file == NULL) {
+		/* generate a public certificate and a private key */
+		
+		cr_make_cert(&cert,&pkey,2048,0,365);
+
+		SSL_CTX_use_certificate(ssl, cert);
+		SSL_CTX_use_PrivateKey(ssl, pkey);
+
+#ifdef CR_MK_CERT	
+		RSA_print_fp(stdout,pkey->pkey.rsa,0);
+		X509_print_fp(stdout,cert);
+		
+		PEM_write_PrivateKey(stdout,pkey,NULL,NULL,0,NULL, NULL);
+		PEM_write_X509(stdout,cert);
+#endif
+
+	} else {
+		if (SSL_CTX_use_certificate_file(ssl, (const char*)cert_file,
+						 SSL_FILETYPE_PEM) <= 0) {
+			ERR_print_errors_fp(stderr);
+			exit(3);
+		}
+		if (SSL_CTX_use_RSAPrivateKey_file(ssl, (const char*)key_file,
+						SSL_FILETYPE_PEM) <= 0) {
+			ERR_print_errors_fp(stderr);
+			exit(4);
+		}
 	}
-	rc4_key_sched(seed,keylen,ctx);
+	
+	if (!SSL_CTX_check_private_key(ssl)) {
+		perrx("Private key does not match the certificate public key\n");
+		exit(5);
+	}
+	
+}
+
+/* cr_make_cert generates a server public/private keys 
+ * cert : X509 instance
+ * pkey : private key instance
+ * bits : RSA key length
+ * serial : serial number
+ * days : how many days the certificate is valid
+ */
+int cr_make_cert(X509 **cert,EVP_PKEY **pkey,int bits,int serial,int days)
+{
+	X509 *x;
+	EVP_PKEY *pk;
+	RSA *rsa;
+	X509_NAME *name = NULL;
+
+	if((pkey == NULL) || (*pkey == NULL)) {
+		pk = EVP_PKEY_new();
+		if(pk == NULL) {
+			perrx("EVP_PKEY_new() failed\n");
+			return -1;
+		}
+	} else 
+		pk = *pkey;
+	
+	if((cert == NULL) || (*cert == NULL)) {
+		x = X509_new();
+		if ((x == NULL)) {
+			perrx("X509_new() failed\n");
+			return -1;
+		} 
+	}else
+		x= *cert;
+	
+	/* generate RSA key */
+	rsa = RSA_generate_key(bits,RSA_F4,NULL,NULL);
+	if(!EVP_PKEY_assign_RSA(pk, rsa)) {
+			perrx("X509_new() failed\n");
+			return -1;
+	}
+	rsa = NULL;
+
+	X509_set_version(x,2);
+	ASN1_INTEGER_set(X509_get_serialNumber(x),serial);
+	X509_gmtime_adj(X509_get_notBefore(x),0);
+	X509_gmtime_adj(X509_get_notAfter(x),(long)60*60*24*days);
+	X509_set_pubkey(x,pk);
+
+	name=X509_get_subject_name(x);
+	
+	X509_NAME_add_entry_by_txt(name,"C",
+			MBSTRING_ASC, (const unsigned char *)"UK", -1, -1, 0);
+
+	X509_NAME_add_entry_by_txt(name,"CN",
+			MBSTRING_ASC, (const unsigned char*)"VPNPivot", -1, -1, 0);
+	
+	
+	/* Its self signed so set the issuer name to be the same as the
+ 	 * subject.
+	 */
+	X509_set_issuer_name(x, name);
+
+	if(!X509_sign(x, pk, EVP_md5())) // secured more with sha1? md5/sha1? sha256?
+		abort();
+
+	*cert = x;
+	*pkey = pk;
+
+	return 1;
 }

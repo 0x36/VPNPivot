@@ -1,11 +1,22 @@
-#include <sys/types.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdarg.h>
-#include <unistd.h>
 #include "etn.h"
 
+
+ssize_t read_packet(struct socket *sock,struct mbuf* mbuf,size_t mtu)
+{
+#ifdef USE_SSL
+	mbuf->mb_len = SSL_read(sock->sk_ssl,mbuf->mb_data,mtu);
+#else	
+	mbuf->mb_len = read(sock->sk_fd,mbuf->mb_data,mtu);
+#endif	/* USE_SSL */
+
+	return mbuf->mb_len;
+}
+
+ssize_t send_packet(struct socket *sock,struct mbuf* mbuf)
+{
+	return 0;
+}
+/* malloc manipulation */
 void *xmalloc(size_t size)
 {
 	void *p = malloc(size);
@@ -15,6 +26,7 @@ void *xmalloc(size_t size)
 	       
 		
 }
+
 void *xzalloc(size_t size)
 {
 	void *p = calloc(1,size);
@@ -29,16 +41,33 @@ void perrx(char *str)
 	else
 		ferr("[ERROR] %d: %s",__LINE__,str);
 }
-
+/* I suck, FIXME */
 int printfd(int fd, const char *fmt, ...)
 {
-	char data[512];
-	int len;
+	char *data;
+	size_t len;
 	va_list ap;
 	int wr;
+	
+	len = strlen(fmt);
+	data = (char*)xmalloc(len+1);
+	memset(data,0,len+1);
 	va_start(ap, fmt);
-	len = vsnprintf(data, 512, fmt, ap);
+	len = vsnprintf(data, len, fmt, ap);
 	va_end(ap);
 	wr = write(fd, data, len);
+	free(data);
 	return wr;
+}
+
+struct socket * socket_alloc(void)
+{
+	struct socket *s;
+	
+	s = (struct socket *)xzalloc(sizeof(struct socket));
+	if(!s)
+		return NULL;
+
+	return s;
+	
 }

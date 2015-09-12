@@ -20,6 +20,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/time.h>
+#include <sys/poll.h>
 
 #include <netdb.h>
 #include <net/if.h>
@@ -34,12 +35,26 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <openssl/crypto.h>
+#include <openssl/x509v3.h>
+#include <openssl/x509_vfy.h>
+#include <openssl/pem.h>
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/bio.h>
+
+#define CHK_SSL_NULL(x) if ((x)==NULL) exit (1)
+#define CHK_SSL_ERR(err,s) if ((err)==-1) { perror(s); exit(1); }
+#define CHK_SSL(err) if ((err)==-1) { ERR_print_errors_fp(stdout); exit(2); }
+
 #define DEFAULT_SKEY	"I_Own_y0u"
+#define VPNP_ENC	0x1
+
 struct netdev_ops;
 struct socket;
 struct mbuf;
-
 struct mbuf_q *mbq;
+
 
 struct netdev {
 	int nd_fd;
@@ -56,12 +71,43 @@ struct netdev {
 
 /* socket handler  */
 struct socket {
+
+#ifdef SOCK_DEBUG
+	struct {
+		int sk_fd;
+		in_addr_t sk_ip;
+		u_int16_t sk_port;
+		int sk_prot;
+	}ipinfo;
+	/* some macro facilities */
+#define ipinfo.sk_fd sfd
+#define ipinfo.sk_fd ipaddr
+#define ipinfo.sk_port port
+#define ipinfo.sk_prot proto
+#endif
 	int sk_fd;
 	in_addr_t sk_ip;
 	u_int16_t sk_port;
 	int sk_prot;
 	struct sockaddr_in sk_serv;
 	struct sockaddr_in sk_cli;
+#define sfd	sk_fd
+#define ipaddr	sk_fd	
+#define sport	sk_port 
+#define proto	sk_prot 
+#define sserv	sk_serv 
+#define scli	sk_cli	
+
+	SSL_CTX *sk_ctx;
+	const SSL_METHOD *sk_meth;
+	SSL *sk_ssl;
+	SSL_CTX *(*sk_ssl_init)(void);
+	int (*sk_ssl_connect)(struct socket**);
+
+	ssize_t (*sk_io_read)(struct socket *,struct mbuf*);
+	ssize_t (*sk_io_write)(struct socket *,struct mbuf*);
+	int (*sk_connect)(struct socket **,char*,u_short );
+	int (*sk_setup_promisc)(struct netdev*);
 };
 
 struct mbuf_q {
@@ -92,25 +138,22 @@ void *xzalloc(size_t);
 void perrx(char *str);
 int printfd(int fd, const char *fmt, ...);
 
-/* inline int __mbuf_queue_empty(void) */
-/* { */
-/* 	return mbq->head == (struct mbuf*)mbq; */
-		
-/* } */
-
+struct socket *socket_alloc(void);
+int cr_ssl_connect(struct socket *);
 struct socket *etn_sock_connect(char *,unsigned short);
+int cl_sock_connect(struct socket **,char *,u_short);
 void etn_sock_close(struct socket *);
+in_addr_t __reslov_host(const char*);
+/* I/O prototypes */
+ssize_t read_packet(struct socket * ,struct mbuf *,size_t);
+ssize_t send_packet(struct socket * ,struct mbuf *);
+ssize_t get_data(int ,void *,size_t);
 
-struct rc4_context {
-	unsigned char state[256];
-	unsigned char x;
-	unsigned char y;
-};
-
-#define SWAP_BYTES(x,y) char t = *(x); *(x) = *(y); *(y) = t
-
-void rc4_key_sched(unsigned char *,unsigned int ,struct rc4_context *);
-void rc4_cipher(unsigned char *,unsigned int ,struct rc4_context *);
-void rc4_prepare_shared_key(struct rc4_context *,unsigned char *);
-
+/* Crypto prototypes () */
+SSL_CTX *cr_ssl_context(void);
+SSL_CTX *cr_ssl_context_cli(void);
+void cr_show_cert(SSL* );
+int cr_make_cert(X509 **,EVP_PKEY **,int ,int ,int );
+void cr_load_certs(SSL_CTX *,u_char *,u_char *);
 #endif	/* H_ETN_H */
+

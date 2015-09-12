@@ -2,16 +2,16 @@ CC=gcc
 SRC=$(wildcard *.c)
 OBJ=$(SRC:.c=.o)
 DEP=MF.dep
-CFLAGS=-ggdb -lpthread -Wall -O2
+CFLAGS=-ggdb -lpthread -lssl -lcrypto  -O2 -Wall -Wimplicit-function-declaration -DUSE_SSL -DUSE_POLL
 Q=@
 BINSRV=vpnp_server
 BINCLI=vpnp_client
-OB= utils.o crypto.o
+OB= crypto.o utils.o
 all:$(BINSRV) $(BINCLI)
 
-$(BINSRV):vpnp_server.o $(OB)
+$(BINSRV):$(OB) vpnp_server.o
 	$(Q)echo "  [BIN] $@"
-	@$(CC) -o $@ $^ $(CFLAGS)
+	@$(CC) -o $@ $^ etn.h $(CFLAGS)
 
 $(BINCLI):vpnp_client.o $(OB)
 	$(Q)echo "  [BIN] $@"
@@ -19,14 +19,14 @@ $(BINCLI):vpnp_client.o $(OB)
 
 %.o:%.c
 	@echo "  [CC] $@"	
-	$(Q)$(CC) -c $< $(CFLAGS)
+	@$(CC) -c $< $(CFLAGS)
 
 clean_obj:
 	@rm -rf $(OBJ)
 
 clean: clean_obj
 	@echo "  [RM] *~ $(DEP)"
-	$(Q)rm -rf *~
+	@$(Q)rm -rf *~
 	$(Q)rm -rf $(DEP)
 	@echo "  [RM] $(BINSRV) $(BINCLI)"
 	$(Q)rm -rf $(BINSRV)

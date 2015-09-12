@@ -22,114 +22,70 @@
  *      Foundation, Inc., 59 Temple Place, Suite 330, Boston,
  *      02111-1307  USA
  * 
-*/
+ */
 
 #include "etn.h"
 
 #define IP_MAXPACKET	65535
 #define IP_MAXRECV	1500
-
+#define VPNP_CLIENT
 void banner(const char*);
 /* open a devince in promiscious mode  */
-int etn_setup_promisc(struct netdev*);
+int cl_setup_promisc(struct netdev*);
 struct ifreq * lookup_dev(struct ifreq *,int *,struct netdev *);
-static int etn_cli_recv(struct netdev *,struct socket *);
+static int cl_dev_xmit(struct netdev *,struct socket *);
 static int etn_cli_exit(struct netdev *);
+
 void *mbuf_sock_hanler(void *);
 
 unsigned char *shr_key=NULL;
+
 struct netdev_ops nd_ops = {
 	.init = NULL,		/* no need to create a virtual device */
-	.xmit = etn_cli_recv,
+	.xmit = cl_dev_xmit,
 	.exit = etn_cli_exit,
 };
 
 int main(int argc,char **argv)
 {
-	struct etnc_struct *etnc;
 	struct netdev *nd;
 	int ret;
-	
-	if(argc < 5)
-		banner(argv[0]);
-	if(argc == 5)
-		shr_key = (unsigned char*)strdup(argv[4]);
+	struct socket *sock;
 
-	nd = xmalloc(sizeof(struct netdev*));
-	etnc = xmalloc(sizeof(struct etnc_struct*));
 	
+	if(argc != 4)
+		banner(argv[0]);
+
+	ret = -1;
+	nd = xzalloc(sizeof(struct netdev));
+	if(!nd) {
+		perrx("Couldn't create netdev structure");
+		goto bad;
+	}
+	
+	sock = socket_alloc();
+	if(sock == NULL)
+		goto bad;
+
 	nd->nd_ipaddr = inet_addr(argv[3]);
 	nd->nd_ops = &nd_ops;
 	
-	nd->sk = etn_sock_connect(argv[1],atoi(argv[2]));
-	if(nd->sk == NULL) {
-		printfd(2," Couldn't create the socket structure\n");
-		ret = -1;
+	if(cl_sock_connect(&sock,argv[1],atoi(argv[2])) < 0)
 		goto bad;
-	}
 	
-	if(etn_setup_promisc(nd) < 0) {
-		ret = -1;
+	nd->nd_ipaddr = inet_addr(argv[3]);
+	nd->nd_ops = &nd_ops;
+	nd->sk = sock;
+	if(cl_setup_promisc(nd) < 0)
 		goto bad;
-	}
-
+	
+	
 	return 0;
-
 bad:
-	//if(nd) free(nd);
-	if(etnc) free(etnc);
-	etn_sock_close(nd->sk);
-	nd->nd_ops->exit(nd);
+	if(sock)
+		free(sock);
 	return ret;
 }
-
-struct socket * etn_sock_connect(char *server,unsigned short port)
-{
-	int fd,ret;
-	struct hostent *h;
-	char **pptr;
-	char ip[15]={0};
-	struct sockaddr_in cli;
-	struct socket *sk;
-	
-	sk = xmalloc(sizeof(struct socket *));
-	
-	fd = socket(AF_INET,SOCK_STREAM,0);
-	if(sk-fd < 0) {
-		printf("socket error \n");
-		return NULL;
-	}
-	/* resolve name */
-	h = gethostbyname(server);
-	if(!h) {
-		perrx("The hostname couln't be resolved\n");
-		return NULL;
-	}
-	
-	pptr = h->h_addr_list;
-	for(;*pptr;pptr++) {
-		inet_ntop(h->h_addrtype,*pptr,ip,sizeof(ip));
-		break;
-	}
-	
-	memset(&cli,0,sizeof(struct sockaddr_in));
-	sk->sk_cli.sin_port = htons(port);
-	sk->sk_cli.sin_family = AF_INET;
-	sk->sk_cli.sin_addr.s_addr = inet_addr(ip);
-	
-	/* fill socket buffer  */
-	sk->sk_port = port;
-	sk->sk_ip = htonl(sk->sk_cli.sin_addr.s_addr);
-	ret = connect(fd,(const struct sockaddr*)&sk->sk_cli,sizeof(struct sockaddr));
-	sk->sk_fd = fd;
-	if(ret == -1) {
-		perrx("Connect()");
-		return NULL;
-	}
-	
-	return sk;
-}
-
 void etn_sock_close(struct socket *sk)
 {
 	if(!sk)
@@ -140,13 +96,13 @@ void etn_sock_close(struct socket *sk)
 void banner(const char *arg)
 {
 	printfd(1,"Usage : \n"
-	       "%s <server IP> <server port> <locale IP> <key> [MTU]\n"
+	       "%s <server IP> <server port> <locale IP> [MTU]\n"
 	       ,arg
 		);
 	exit(0);
 }
 
-int etn_setup_promisc(struct netdev *nd)
+int cl_setup_promisc(struct netdev *nd)
 {
 	char buf[1024]={0};
 	struct ifconf ifc;
@@ -247,23 +203,20 @@ struct ifreq * lookup_dev(struct ifreq *ifr,int *count,struct netdev *nd)
 	return NULL;
 }
 
-static int etn_cli_recv(struct netdev *nd,struct socket *sk)
+static int cl_dev_xmit(struct netdev *nd,struct socket *sk)
 {
 	int ret;
 	struct mbuf mb_d,mb;
-	int maxfd;
+	int maxfd,flags=0;
 	fd_set in;
 	unsigned int nbytes;
-	struct rc4_context ctx;
-	
-	rc4_prepare_shared_key(&ctx,shr_key);
 
 	mb_d.mb_data = xmalloc(IP_MAXRECV);
 	mb_d.mb_len = 0;
 	if(mb_d.mb_data == NULL)
 		goto bad;
 	
-	mb.mb_data = xmalloc(IP_MAXRECV*sizeof(char));
+	mb.mb_data = xmalloc(2000*sizeof(char));
 	mb.mb_len = 0;
 	if(mb.mb_data == NULL)
 		goto bad;
@@ -286,26 +239,45 @@ static int etn_cli_recv(struct netdev *nd,struct socket *sk)
 				perrx("etn_cli_recv:recv");
 				goto bad;
 			}
-			rc4_cipher(mb_d.mb_data,mb_d.mb_len,&ctx);			
-			ret = send(nd->sk->sk_fd,mb_d.mb_data,mb_d.mb_len,0);
+
+#ifdef USE_SSL
+			ret = SSL_write(nd->sk->sk_ssl,mb_d.mb_data,mb_d.mb_len);
+			if(ret < 0) {
+				perrx("etn_cli_recv:send");
+				goto bad;
+			}
+#else
+			ret = write(nd->sk->sk_fd,mb_d.mb_data,mb_d.mb_len);
 			if(ret == -1) {
 				perrx("etn_cli_recv:send");
 				goto bad;
 			}
+#endif
 		}
 		/* we got something from socket */
 		if(FD_ISSET(nd->sk->sk_fd,&in)) {
-			mb.mb_len = recv(nd->sk->sk_fd,mb.mb_data,IP_MAXRECV,0);
+			/*
+			printf("lol\n");
+			mb.mb_len = read(nd->sk->sk_fd,mb.mb_data,4096);
+			printf("READ : %d\n",mb.mb_len);
 			if(mb.mb_len == -1) {
 				perrx("recv_sock_handler:recv");
 				goto bad;
 			}
-			rc4_cipher(mb.mb_data,mb.mb_len,&ctx);
+			*/
+			if(read_packet(nd->sk,&mb,1514) <= 0) {
+				perrx("read");
+				perrx("read_packet():");
+				exit(0);
+				goto bad;
+			}
+			
+			printf("READ : %d\n",mb.mb_len);
 			nbytes = sendto(nd->nd_fd,mb.mb_data,mb.mb_len,0,NULL,0);
 			
 			if(nbytes == -1) {	
-				perrx("recv_sock_handler:send");
-				//goto bad;
+				perrx("recv_sock_handler:sendto");
+				goto bad;
 			}
 			
 		}
@@ -327,3 +299,67 @@ static int etn_cli_exit(struct netdev *nd)
 	return 0;
 }
 
+int cl_sock_connect(struct socket **sock,char *server,u_short port)
+{
+	struct socket *sk;
+	int fd,ret;
+	struct linger so_linger;
+	struct hostent *h;
+	char **pptr;
+	char ip[15]={0};
+	struct sockaddr_in cli;
+
+	sk = *sock;
+	
+	fd = socket(AF_INET,SOCK_STREAM,0);
+	if(fd < 0) {
+		printf("socket error \n");
+		return -1;
+	}
+#ifdef USE_SSL 
+	printf("use ssl\n");
+	sk->sk_ctx = cr_ssl_context_cli();
+	SSL_CTX_set_options(sk->sk_ctx, SSL_OP_NO_SSLv2);
+	sk->sk_ssl = SSL_new(sk->sk_ctx);
+#endif
+
+	/* set linger socket option  */
+	so_linger.l_onoff = 1;
+	so_linger.l_linger = 0;
+
+	/* resolve name */
+	h = gethostbyname(server);
+	if(!h) {
+		perrx("The hostname couln't be resolved\n");
+		return -1;
+	}
+	
+	pptr = h->h_addr_list;
+	for(;*pptr;pptr++) {
+		inet_ntop(h->h_addrtype,*pptr,ip,sizeof(ip));
+		break;
+	}
+	
+	memset(&cli,0,sizeof(struct sockaddr_in));
+	sk->scli.sin_port = htons(port);
+	sk->scli.sin_family = AF_INET;
+	sk->scli.sin_addr.s_addr = inet_addr(ip);
+	
+	/* fill socket buffer  */
+	sk->sport = port;
+	sk->ipaddr = htonl(sk->sk_cli.sin_addr.s_addr);
+
+	ret = connect(fd,(const struct sockaddr*)&sk->sk_cli,sizeof(struct sockaddr));
+	if(ret == -1) {
+		perrx("cl_sock_connect() failed");
+		return -1;
+	}
+	sk->sk_fd = fd;
+
+#ifdef USE_SSL
+	int r;
+	r = cr_ssl_connect(sk);
+#endif
+
+	return 0;
+}
