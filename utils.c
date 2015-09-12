@@ -12,10 +12,6 @@ ssize_t read_packet(struct socket *sock,struct mbuf* mbuf,size_t mtu)
 	return mbuf->mb_len;
 }
 
-ssize_t send_packet(struct socket *sock,struct mbuf* mbuf)
-{
-	return 0;
-}
 /* malloc manipulation */
 void *xmalloc(size_t size)
 {
