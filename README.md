@@ -31,8 +31,8 @@ it works like we are creating a undetectable tap device which makes it harder to
 Usage
 -------------
 **Compilation :**
-
-> simo:~/projects/VPNPivot$ make
+```shell
+~/projects/VPNPivot$ make
   [CC] vpnp_server.o
   [CC] crypto.o
   [BIN] vpnp_server
@@ -43,10 +43,10 @@ Usage
 > ./vpnp_server -i pwn0 -I 10.10.10.145/24 -m 1500 -H 0c:0a:DE:AD:BE:EF -K "I0wnY0u*!" -v**
 [+] Setup a non-persistent tap : pwn0
 [+] Listening on port : 12345
-
+```
 So it creates an a tap device named pwn0 as shown bellow:
-> 
-simo:~$ ifconfig pwn0
+```shell
+~$ ifconfig pwn0
 pwn0      Link encap:Ethernet  HWaddr 0c:0a:de:ad:be:ef  
           inet adr:192.168.200.70  Bcast:192.168.200.255  Masque:255.255.255.0
           adr inet6: fe80::887e:86ff:fe8a:3599/64 Scope:Lien
@@ -55,13 +55,13 @@ pwn0      Link encap:Ethernet  HWaddr 0c:0a:de:ad:be:ef
           TX packets:0 errors:0 dropped:0 overruns:0 carrier:0
           collisions:0 lg file transmission:500 
           Octets reçus:0 (0.0 B) Octets transmis:0 (0.0 B)
-
+```
 finally, it waits for the client to be connected 
-
+```shell
 **vpnp_client :**
 > Usage : 
 ./vpnp_client 10.254.30.53 12345 10.10.10.1 "I0wnY0u*!"
-
+```
 That's it :-) , enjoy your pwning 
 
 TODO
