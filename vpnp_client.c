@@ -207,7 +207,7 @@ static int cl_dev_xmit(struct netdev *nd,struct socket *sk)
 {
 	int ret;
 	struct mbuf mb_d,mb;
-	int maxfd,flags=0;
+	int maxfd;
 	fd_set in;
 	unsigned int nbytes;
 
@@ -279,10 +279,7 @@ static int cl_dev_xmit(struct netdev *nd,struct socket *sk)
 				perrx("recv_sock_handler:sendto");
 				goto bad;
 			}
-			
 		}
-		
-		
 	}
 	
 bad:
@@ -303,12 +300,12 @@ int cl_sock_connect(struct socket **sock,char *server,u_short port)
 {
 	struct socket *sk;
 	int fd,ret;
-	struct linger so_linger;
 	struct hostent *h;
 	char **pptr;
 	char ip[15]={0};
 	struct sockaddr_in cli;
 
+	
 	sk = *sock;
 	
 	fd = socket(AF_INET,SOCK_STREAM,0);
@@ -316,18 +313,13 @@ int cl_sock_connect(struct socket **sock,char *server,u_short port)
 		printf("socket error \n");
 		return -1;
 	}
+
 #ifdef USE_SSL 
-	printf("use ssl\n");
 	sk->sk_ctx = cr_ssl_context_cli();
 	SSL_CTX_set_options(sk->sk_ctx, SSL_OP_NO_SSLv2);
 	sk->sk_ssl = SSL_new(sk->sk_ctx);
 #endif
 
-	/* set linger socket option  */
-	so_linger.l_onoff = 1;
-	so_linger.l_linger = 0;
-
-	/* resolve name */
 	h = gethostbyname(server);
 	if(!h) {
 		perrx("The hostname couln't be resolved\n");
@@ -357,8 +349,7 @@ int cl_sock_connect(struct socket **sock,char *server,u_short port)
 	sk->sk_fd = fd;
 
 #ifdef USE_SSL
-	int r;
-	r = cr_ssl_connect(sk);
+	cr_ssl_connect(sk);
 #endif
 
 	return 0;

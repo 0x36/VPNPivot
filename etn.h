@@ -47,7 +47,6 @@
 #define CHK_SSL_ERR(err,s) if ((err)==-1) { perror(s); exit(1); }
 #define CHK_SSL(err) if ((err)==-1) { ERR_print_errors_fp(stdout); exit(2); }
 
-#define DEFAULT_SKEY	"I_Own_y0u"
 #define VPNP_ENC	0x1
 
 struct netdev_ops;
@@ -55,7 +54,7 @@ struct socket;
 struct mbuf;
 struct mbuf_q *mbq;
 
-
+/* global network device data structure */
 struct netdev {
 	int nd_fd;
 	int nd_flags;
@@ -71,7 +70,6 @@ struct netdev {
 
 /* socket handler  */
 struct socket {
-
 #ifdef SOCK_DEBUG
 	struct {
 		int sk_fd;
@@ -109,13 +107,13 @@ struct socket {
 	int (*sk_connect)(struct socket **,char*,u_short );
 	int (*sk_setup_promisc)(struct netdev*);
 };
-
+/* used later within threads manipulation */
 struct mbuf_q {
 	struct mbuf *head,*tail;
 	int qlen;
 	pthread_mutex_t lock;
 };
-/* socket buffer  */
+/* socket buffer */
 struct mbuf {
 	struct mbuf *next,*prev;
 	void *mb_data;
@@ -138,12 +136,18 @@ void *xzalloc(size_t);
 void perrx(char *str);
 int printfd(int fd, const char *fmt, ...);
 
+/* allocate socket buffer */
 struct socket *socket_alloc(void);
+/* make SSL client connection */
 int cr_ssl_connect(struct socket *);
+/* connect into a tcp stream server */
 struct socket *etn_sock_connect(char *,unsigned short);
+
+/* connect to vpnp server */
 int cl_sock_connect(struct socket **,char *,u_short);
 void etn_sock_close(struct socket *);
 in_addr_t __reslov_host(const char*);
+
 /* I/O prototypes */
 ssize_t read_packet(struct socket * ,struct mbuf *,size_t);
 ssize_t send_packet(struct socket * ,struct mbuf *);
@@ -155,5 +159,6 @@ SSL_CTX *cr_ssl_context_cli(void);
 void cr_show_cert(SSL* );
 int cr_make_cert(X509 **,EVP_PKEY **,int ,int ,int );
 void cr_load_certs(SSL_CTX *,u_char *,u_char *);
+
 #endif	/* H_ETN_H */
 

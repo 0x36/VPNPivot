@@ -326,21 +326,26 @@ static int dev_init(struct netdev* dev)
 static int dev_xmit(struct netdev* dev,struct socket *sk)
 {
 	fd_set in;
-	int ret,maxfd;
+	int ret;
 	struct mbuf mb;
-	struct pollfd pfd[2]={0};
-	
+	struct pollfd pfd[2];
+
 	memset(&mb,0,sizeof(struct mbuf));
 	mb.mb_data = (u_int8_t*)xmalloc(dev->nd_mtu * sizeof(u_int8_t));
 	memset(mb.mb_data,0,sizeof(dev->nd_mtu*sizeof(u_int8_t)));
 	printf("[+] Connected ... OK\n");
 	
 	FD_ZERO(&in);
-	
+
+#ifndef USE_POLL
+	int maxfd;
 	maxfd = (sk->sk_fd > dev->nd_fd)? sk->sk_fd:dev->nd_fd;
+#endif
+
 	for(;;) {
 
 #ifndef USE_POLL
+
 		FD_SET(dev->nd_fd,&in);
 		FD_SET(sk->sk_fd,&in);
 		ret = select(maxfd+1,&in,NULL,NULL,NULL);

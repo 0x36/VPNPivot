@@ -37,14 +37,13 @@ SSL_CTX *cr_ssl_context(void)
 	SSL_CTX *ssl;
 	
 	/* loading ssl features */
-
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
-
 	SSL_library_init();	
+
 	/* creat a TLSv1 method instance */
 	meth = TLSv1_server_method();
-	//meth = SSLv23_server_method();
+	/* meth = SSLv23_server_method(); */
 	ssl = SSL_CTX_new(meth);
 	if(!ssl) {
 		ERR_print_errors_fp(stderr);
@@ -59,14 +58,13 @@ SSL_CTX *cr_ssl_context_cli(void)
 	SSL_CTX *ssl;
 	
 	/* loading ssl features */
-
 	SSL_load_error_strings();
 	OpenSSL_add_all_algorithms();
 
 	SSL_library_init();	
 	/* creat a TLSv1 method instance */
 	meth = TLSv1_client_method();
-
+	
 	ssl = SSL_CTX_new(meth);
 	if(!ssl) {
 		ERR_print_errors_fp(stderr);
@@ -77,11 +75,9 @@ SSL_CTX *cr_ssl_context_cli(void)
 
 int cr_ssl_connect(struct socket *s)
 {
-	printf("SSL Connect\n");
 	struct socket *sock;
 
 	sock = s;
-	
 	SSL_set_fd(sock->sk_ssl,sock->sk_fd);
 	SSL_connect(sock->sk_ssl);
 	return -1;
@@ -110,7 +106,6 @@ void cr_load_certs(SSL_CTX *ssl,u_char *cert_file,u_char *key_file)
 		PEM_write_PrivateKey(stdout,pkey,NULL,NULL,0,NULL, NULL);
 		PEM_write_X509(stdout,cert);
 #endif
-
 	} else {
 		if (SSL_CTX_use_certificate_file(ssl, (const char*)cert_file,
 						 SSL_FILETYPE_PEM) <= 0) {
@@ -123,12 +118,9 @@ void cr_load_certs(SSL_CTX *ssl,u_char *cert_file,u_char *key_file)
 			exit(4);
 		}
 	}
-	
 	if (!SSL_CTX_check_private_key(ssl)) {
-		perrx("Private key does not match the certificate public key\n");
-		exit(5);
+		perrx("Private key does not match the certificate public key\n");		exit(5);
 	}
-	
 }
 
 /* cr_make_cert generates a server public/private keys 
@@ -178,14 +170,11 @@ int cr_make_cert(X509 **cert,EVP_PKEY **pkey,int bits,int serial,int days)
 	X509_set_pubkey(x,pk);
 
 	name=X509_get_subject_name(x);
-	
 	X509_NAME_add_entry_by_txt(name,"C",
 			MBSTRING_ASC, (const unsigned char *)"UK", -1, -1, 0);
 
 	X509_NAME_add_entry_by_txt(name,"CN",
 			MBSTRING_ASC, (const unsigned char*)"VPNPivot", -1, -1, 0);
-	
-	
 	/* Its self signed so set the issuer name to be the same as the
  	 * subject.
 	 */

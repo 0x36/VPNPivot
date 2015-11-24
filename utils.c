@@ -19,8 +19,6 @@ void *xmalloc(size_t size)
 	if(!p) 
 		perrx("xmalloc");
 	return p;
-	       
-		
 }
 
 void *xzalloc(size_t size)
@@ -63,7 +61,7 @@ struct socket * socket_alloc(void)
 	s = (struct socket *)xzalloc(sizeof(struct socket));
 	if(!s)
 		return NULL;
-
+	
 	return s;
 	
 }
