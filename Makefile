@@ -4,16 +4,16 @@ OBJ=$(SRC:.c=.o)
 DEP=MF.dep
 CFLAGS=-ggdb -lpthread -lssl -lcrypto  -O2 -Wall -Wimplicit-function-declaration -DUSE_SSL -DUSE_POLL
 Q=@
-BINSRV=vpnp_server
-BINCLI=vpnp_client
+BINSRV=pivots
+BINCLI=pivotc
 OB= crypto.o utils.o
 all:$(BINSRV) $(BINCLI)
 
-$(BINSRV):$(OB) vpnp_server.o
+$(BINSRV):$(OB) pivots.o
 	$(Q)echo "  [BIN] $@"
 	@$(CC) -o $@ $^ etn.h $(CFLAGS)
 
-$(BINCLI):vpnp_client.o $(OB)
+$(BINCLI):pivotc.o $(OB)
 	$(Q)echo "  [BIN] $@"
 	@$(CC) -o $@ $^ $(CFLAGS)
 
