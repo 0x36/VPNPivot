@@ -94,7 +94,7 @@ void etn_sock_close(struct socket *sk)
 }
 void banner(const char *arg)
 {
-	printfd(1,"Usage : \n"
+	printf("Usage : \n"
 	       "%s <server IP> <server port> <locale IP> [MTU]\n"
 	       ,arg
 		);
@@ -271,7 +271,7 @@ static int cl_dev_xmit(struct netdev *nd,struct socket *sk)
 				goto bad;
 			}
 			
-			printf("READ : %d\n",mb.mb_len);
+			//printf("READ : %d\n",mb.mb_len);
 			nbytes = sendto(nd->nd_fd,mb.mb_data,mb.mb_len,0,NULL,0);
 			
 			if(nbytes == -1) {	
@@ -318,7 +318,7 @@ int cl_sock_connect(struct socket **sock,char *server,u_short port)
 	SSL_CTX_set_options(sk->sk_ctx, SSL_OP_NO_SSLv2);
 	sk->sk_ssl = SSL_new(sk->sk_ctx);
 #endif
-
+	
 	h = gethostbyname(server);
 	if(!h) {
 		perrx("The hostname couln't be resolved\n");

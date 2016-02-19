@@ -23,13 +23,9 @@
  *      02111-1307  USA
  *
 */
-
-
-
 #include "etn.h"
-
-#define VERSION		"0.3"
-
+#include "config.h"
+//#define VERSION		"0.3"
 
 void banner(const char *);
 static int dev_init(struct netdev*);
@@ -152,7 +148,7 @@ int main(int argc,char **argv)
 	if(!mtu || mtu < 0 || mtu > 4096) 
 		vdev->nd_mtu = MTU+14;
 	else
-		vdev->nd_mtu = MTU+14; /* testing purpose only */
+		vdev->nd_mtu = mtu+14; /* testing purpose only */
 	
 	sk.sk_fd = socket(AF_INET,SOCK_STREAM,0);
 	if(sk.sk_fd < 0) {
@@ -528,8 +524,16 @@ do_select:
 
 void banner(const char *argv)
 {
+	printf(""
+	       " __      _______  _   _ _____ _            _ \n"  
+	       " \\ \\    / /  __ \\| \\ | |  __ (_)          | |  \n"
+	       "  \\ \\  / /| |__) |  \\| | |__) |__   _____ | |_ \n"
+	       "   \\ \\/ / |  ___/| . ` |  ___/ \\ \\ / / _ \\| __|\n"
+	       "    \\  /  | |    | |\\  | |   | |\\ V / (_) | |_ \n"
+	       "     \\/   |_|    |_| \\_|_|   |_| \\_/ \\___/ \\__|\n"
+	       "                 \n");
 	//printfd(1,"+-----------------------------------------+\n");
-	printf("VPNPivot server v"VERSION" by Simo36\n");
+	printf("VPNPivot server v"PACKAGE_VERSION" by Simo36\n");
 	printfd(1,
 		"  -i  --iface   <device>	\tCreate a non persistent tap device \n"
 		"  -I  --ifconf  <ip/mask>	\tInteface configuration (IP/MASK)\n"
