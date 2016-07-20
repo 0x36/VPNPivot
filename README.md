@@ -13,6 +13,11 @@ VPN Pivot sends and receive a fully encrypted TCP/IP stack over TCP stream socke
 The attacker explores the internal network as he belongs to it within a local IP address taken from the dhcp server or statically configured.
 
 ### Installation :
+#### Arch Linux
+```
+yaourt -S vpnpivot-git
+```
+#### Linux
 The installation is pretty straightforward, just type the following commands:
 ```bash
 root@pwnies:~# git clone https://github.com/0x36/VPNPivot.git
