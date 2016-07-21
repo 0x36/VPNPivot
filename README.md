@@ -84,7 +84,7 @@ root@pwnies:~/VPNPivot#
 ```
 The options are :
 * **server IP** : the IP address of the server (pivots)
-* **server IP** : the port which the server is listening on
+* **server port** : the port which the server is listening on
 * **locale IP** : the IP address of the network interface connected to the unreachable network.
 * **MTU**		: the MUT is optional unless you're changing it in **pivots**
 
