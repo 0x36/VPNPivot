@@ -13,6 +13,11 @@ VPN Pivot sends and receive a fully encrypted TCP/IP stack over TCP stream socke
 The attacker explores the internal network as he belongs to it within a local IP address taken from the dhcp server or statically configured.
 
 ### Installation :
+#### Arch Linux
+```
+yaourt -S vpnpivot-git
+```
+#### Linux
 The installation is pretty straightforward, just type the following commands:
 ```bash
 root@pwnies:~# git clone https://github.com/0x36/VPNPivot.git
@@ -79,7 +84,7 @@ root@pwnies:~/VPNPivot#
 ```
 The options are :
 * **server IP** : the IP address of the server (pivots)
-* **server IP** : the port which the server is listening on
+* **server port** : the port which the server is listening on
 * **locale IP** : the IP address of the network interface connected to the unreachable network.
 * **MTU**		: the MUT is optional unless you're changing it in **pivots**
 
